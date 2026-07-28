@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Staff Dashboard | Ration System</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    :root{--blue:#2563eb;--blue-dark:#1d4ed8;--bg:#f0f4f8;--text:#1a202c;--muted:#718096;--border:#e2e8f0;--green:#16a34a;--orange:#d97706;--red:#dc2626;}
+    body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;min-height:100vh;}
+    .app-shell{display:flex;flex:1;min-height:0;}
+    /* Sidebar */
+    .sidebar{width:220px;background:linear-gradient(160deg,#1e3a5f,#1d4ed8);color:white;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:50;transition:transform 0.3s;}
+    .sb-logo{padding:20px 16px 14px;border-bottom:1px solid rgba(255,255,255,0.1);}
+    .sb-logo-inner{display:flex;align-items:center;gap:10px;}
+    .sb-logo-icon{width:36px;height:36px;background:rgba(255,255,255,0.2);border-radius:9px;display:flex;align-items:center;justify-content:center;}
+    .sb-logo-icon svg{width:18px;height:18px;}
+    .sb-logo-text{font-size:0.92rem;font-weight:800;line-height:1.2;}
+    .sb-user{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.08);}
+    .sb-user-name{font-size:0.86rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .sb-user-role{font-size:0.7rem;opacity:0.7;margin-top:2px;}
+    .sb-nav{flex:1;padding:10px 8px;overflow-y:auto;}
+    .sb-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;cursor:pointer;font-size:0.86rem;font-weight:600;color:rgba(255,255,255,0.7);border:none;background:none;width:100%;text-align:left;transition:all 0.2s;margin-bottom:2px;}
+    .sb-item:hover{background:rgba(255,255,255,0.1);color:white;}
+    .sb-item.active{background:rgba(255,255,255,0.18);color:white;}
+    .sb-item svg{width:17px;height:17px;flex-shrink:0;}
+    .sb-footer{padding:12px 8px;border-top:1px solid rgba(255,255,255,0.08);}
+    .logout-btn{width:100%;padding:10px 12px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit;display:flex;align-items:center;gap:7px;transition:all 0.2s;}
+    .logout-btn:hover{background:rgba(239,68,68,0.3);color:white;}
+    .logout-btn svg{width:15px;height:15px;}
+    /* Main */
+    .main{margin-left:220px;flex:1;display:flex;flex-direction:column;min-height:100vh;}
+    .topbar{background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:white;padding:16px 26px;position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;}
+    .topbar h1{font-size:1.3rem;font-weight:800;}
+    .topbar-right{display:flex;gap:10px;align-items:center;}
+    .icon-btn{background:rgba(255,255,255,0.18);border:none;color:white;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.2s;}
+    .icon-btn:hover{background:rgba(255,255,255,0.3);}
+    .icon-btn svg{width:17px;height:17px;}
+    .hamburger{display:none;background:rgba(255,255,255,0.18);border:none;color:white;width:36px;height:36px;border-radius:8px;align-items:center;justify-content:center;cursor:pointer;}
+    .hamburger svg{width:19px;height:19px;}
+    .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:49;}
+    .content{padding:24px 26px;flex:1;}
+    .page{display:none;} .page.active{display:block;animation:fadeUp 0.25s ease;}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+    /* Cards */
+    .card{background:white;border-radius:14px;padding:16px 18px;box-shadow:0 2px 10px rgba(0,0,0,0.06);margin-bottom:14px;}
+    .section-title{font-size:0.95rem;font-weight:800;margin-bottom:14px;}
+    /* Stock summary */
+    .stock-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);}
+    .stock-row:last-child{border-bottom:none;}
+    .sr-icon{width:36px;height:36px;background:#eff6ff;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .sr-icon svg{width:17px;height:17px;color:#2563eb;}
+    .sr-name{font-size:0.9rem;font-weight:700;flex:1;}
+    .dot-badge{display:flex;align-items:center;gap:6px;font-size:0.82rem;font-weight:700;}
+    .dot{width:9px;height:9px;border-radius:50%;}
+    .t-av{color:var(--green);} .t-li{color:var(--orange);} .t-oo{color:var(--red);}
+    /* Shop toggle */
+    .shop-status-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+    .status-lbl{font-size:0.95rem;font-weight:700;}
+    .spill{padding:5px 16px;border-radius:20px;font-size:0.8rem;font-weight:800;}
+    .pill-open{background:#dcfce7;color:var(--green);} .pill-closed{background:#fee2e2;color:var(--red);}
+    .toggle-btn{width:100%;padding:12px;border:none;border-radius:11px;font-family:inherit;font-size:0.9rem;font-weight:700;cursor:pointer;transition:all 0.2s;}
+    .btn-close{background:#fee2e2;color:var(--red);} .btn-open{background:#dcfce7;color:var(--green);}
+    /* Quick actions */
+    .action-item{background:white;border-radius:13px;padding:16px 18px;margin-bottom:12px;display:flex;align-items:center;gap:14px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.05);border:none;width:100%;font-family:inherit;text-align:left;transition:transform 0.2s;}
+    .action-item:active{transform:scale(0.98);}
+    .action-icon{width:48px;height:48px;border-radius:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .action-icon svg{width:22px;height:22px;}
+    .ai-green{background:#dcfce7;color:var(--green);} .ai-orange{background:#fef3c7;color:var(--orange);} .ai-red{background:#fee2e2;color:var(--red);}
+    .action-name{font-size:0.97rem;font-weight:800;color:var(--text);}
+    .chevron{margin-left:auto;color:var(--muted);}
+    .chevron svg{width:18px;height:18px;}
+    /* Subpages */
+    .subpage{display:none;position:fixed;inset:0;background:var(--bg);z-index:200;overflow-y:auto;}
+    .subpage.active{display:block;animation:slideUp 0.3s ease;}
+    @keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
+    .sph{background:linear-gradient(135deg,var(--blue),var(--blue-dark));padding:18px 20px;color:white;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5;}
+    .back-btn{background:rgba(255,255,255,0.2);border:none;color:white;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+    .back-btn svg{width:18px;height:18px;}
+    .sph h2{font-size:1.05rem;font-weight:800;}
+    .sub-content{max-width:600px;margin:0 auto;padding:18px 16px;}
+    /* Forms */
+    .fg{margin-bottom:16px;}
+    .fl{font-size:0.86rem;font-weight:700;color:var(--text);display:block;margin-bottom:7px;}
+    .fi,.fs,.fta{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;font-family:inherit;font-size:0.9rem;color:var(--text);background:white;outline:none;transition:border-color 0.2s;}
+    .fi:focus,.fs:focus,.fta:focus{border-color:var(--blue);}
+    .fta{resize:vertical;min-height:88px;}
+    .bp{width:100%;padding:14px;background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:white;border:none;border-radius:11px;font-family:inherit;font-size:0.95rem;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(37,99,235,0.28);transition:all 0.2s;}
+    .bp:disabled{opacity:0.6;cursor:not-allowed;}
+    .bd{width:100%;padding:14px;background:var(--red);color:white;border:none;border-radius:11px;font-family:inherit;font-size:0.95rem;font-weight:700;cursor:pointer;}
+    .bd:disabled{opacity:0.6;}
+    /* Product list */
+    .plist{display:flex;flex-direction:column;gap:10px;}
+    .pitem{background:white;border-radius:13px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.05);border:2px solid transparent;transition:all 0.2s;}
+    .pitem.sel{border-color:var(--blue);background:#eff6ff;}
+    .pi-ico{width:42px;height:42px;background:#eff6ff;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .pi-ico svg{width:20px;height:20px;color:#2563eb;}
+    .pi-nm{font-size:0.9rem;font-weight:800;}
+    .pi-sb{font-size:0.76rem;color:var(--muted);margin-top:2px;}
+    .bav{background:#dcfce7;color:var(--green);font-size:0.74rem;font-weight:700;padding:3px 10px;border-radius:20px;display:inline-block;}
+    .bli{background:#fef3c7;color:var(--orange);font-size:0.74rem;font-weight:700;padding:3px 10px;border-radius:20px;display:inline-block;}
+    .boo{background:#fee2e2;color:var(--red);font-size:0.74rem;font-weight:700;padding:3px 10px;border-radius:20px;display:inline-block;}
+    /* Info box */
+    .ibox{background:#f8fafc;border-radius:11px;padding:12px 14px;margin-bottom:14px;}
+    .ir{display:flex;justify-content:space-between;padding:5px 0;}
+    .il{font-size:0.82rem;color:var(--muted);font-weight:600;}
+    .iv{font-size:0.82rem;font-weight:800;}
+    /* Confirm box */
+    .cbox{background:#fff5f5;border:1px solid #fecaca;border-radius:13px;padding:18px;margin-bottom:14px;text-align:center;}
+    .cbox-icon{font-size:1.8rem;margin-bottom:8px;}
+    .cbox-title{font-size:0.98rem;font-weight:800;margin-bottom:10px;}
+    .cbox-arrow{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;font-size:0.82rem;}
+    .cbox-msg{font-size:0.82rem;color:var(--muted);}
+    /* Templates */
+    .tpl-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+    .tpl-item{background:white;border-radius:11px;padding:12px 14px;cursor:pointer;font-size:0.87rem;color:var(--text);font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,0.05);border:1.5px solid transparent;transition:all 0.2s;font-family:inherit;text-align:left;width:100%;}
+    .tpl-item:hover{border-color:var(--blue);background:#eff6ff;color:var(--blue);}
+    /* Logs */
+    .log-item{background:white;border-radius:13px;padding:14px 16px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.05);}
+    .log-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+    .log-date{font-size:0.76rem;color:var(--muted);font-weight:600;}
+    .log-badge{font-size:0.68rem;font-weight:800;padding:3px 9px;border-radius:20px;}
+    .la{background:#dcfce7;color:var(--green);} .lu{background:#dbeafe;color:var(--blue);} .lo{background:#fee2e2;color:var(--red);} .ln{background:#fef3c7;color:var(--orange);} .ls{background:#e0e7ff;color:#4338ca;} .lx{background:#f3f4f6;color:#374151;}
+    .log-desc{font-size:0.9rem;font-weight:700;}
+    .log-by{font-size:0.76rem;color:var(--muted);margin-top:3px;}
+    /* Notify nav icon */
+    .notify-icon svg{width:17px;height:17px;}
+    .empty{text-align:center;padding:40px 20px;color:var(--muted);}
+    .empty svg{width:44px;height:44px;margin:0 auto 12px;display:block;opacity:0.3;}
+    .empty p{font-size:0.88rem;font-weight:600;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:#1a202c;color:white;padding:12px 22px;border-radius:10px;font-size:0.85rem;font-weight:600;z-index:9999;transition:transform 0.3s;white-space:nowrap;max-width:90vw;text-align:center;}
+    .toast.show{transform:translateX(-50%) translateY(0);}
+    /* Responsive */
+    @media(max-width:768px){
+      .sidebar{transform:translateX(-100%);}
+      .sidebar.open{transform:none;}
+      .overlay.open{display:block;}
+      .main{margin-left:0;}
+      .hamburger{display:flex;}
+      .content{padding:16px 14px;}
+    }
+    @media(min-width:1100px){
+      .actions-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+      .actions-grid .action-item{margin-bottom:0;}
+    }
+  </style>
+</head>
+<body>
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-inner">
+        <div class="sb-logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+        </div>
+        <div class="sb-logo-text">Staff<br/>Panel</div>
+      </div>
+    </div>
+    <div class="sb-user">
+      <div class="sb-user-name" id="sb-name">—</div>
+      <div class="sb-user-role" id="sb-role">Staff</div>
+    </div>
+    <nav class="sb-nav">
+      <button class="sb-item active" id="nav-dashboard" onclick="goPage('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+        Dashboard
+      </button>
+      <button class="sb-item" id="nav-stock" onclick="goPage('stock')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+        Stock Management
+      </button>
+      <button class="sb-item notify-icon" id="nav-notify" onclick="goPage('notify')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><polygon points="22,2 15,22 11,13 2,9 22,2"/></svg>
+        Send Notifications
+      </button>
+      <button class="sb-item" id="nav-logs" onclick="goPage('logs')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg>
+        Activity Logs
+      </button>
+    </nav>
+    <div class="sb-footer">
+      <button class="logout-btn" onclick="api.logout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Logout
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar" id="topbar">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="hamburger" onclick="openSidebar()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <h1 id="page-title">Dashboard</h1>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" onclick="api.logout()" title="Logout">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- DASHBOARD -->
+      <div class="page active" id="pg-dashboard">
+        <div class="card" id="shopHeader">
+          <div style="font-size:0.78rem;color:var(--muted);font-weight:600;margin-bottom:4px">Admin Panel</div>
+          <div style="font-size:1.1rem;font-weight:800" id="dsh-name">Loading...</div>
+          <div style="font-size:0.82rem;color:var(--muted);margin-top:2px" id="dsh-date"></div>
+        </div>
+        <div class="section-title">Stock Summary</div>
+        <div class="card" id="stockSummary"><div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg><p>Loading...</p></div></div>
+        <div class="section-title">Shop Status</div>
+        <div class="card">
+          <div class="shop-status-row">
+            <span class="status-lbl">Current Status</span>
+            <span class="spill" id="spill">—</span>
+          </div>
+          <button class="toggle-btn" id="tbtn" onclick="toggleShop()">—</button>
+        </div>
+      </div>
+
+      <!-- STOCK -->
+      <div class="page" id="pg-stock">
+        <div class="section-title">Quick Actions</div>
+        <div class="actions-grid">
+          <button class="action-item" onclick="openSub('sub-add')">
+            <div class="action-icon ai-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+            <div class="action-name">Add New Stock</div>
+            <div class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg></div>
+          </button>
+          <button class="action-item" onclick="openSub('sub-upd')">
+            <div class="action-icon ai-orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+            <div class="action-name">Update Stock</div>
+            <div class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg></div>
+          </button>
+          <button class="action-item" onclick="openSub('sub-oos')">
+            <div class="action-icon ai-red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></div>
+            <div class="action-name">Mark Out of Stock</div>
+            <div class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg></div>
+          </button>
+        </div>
+      </div>
+
+      <!-- NOTIFY -->
+      <div class="page" id="pg-notify">
+        <div class="section-title">Quick Templates</div>
+        <div class="tpl-list" id="tplList"></div>
+        <div class="fg"><label class="fl">Custom Message</label><textarea class="fta" id="nMsg" placeholder="Type your notification message..."></textarea></div>
+        <div class="fg"><label class="fl">Type</label>
+          <select class="fs" id="nType">
+            <option value="general">General</option>
+            <option value="stock">Stock Update</option>
+            <option value="warning">Warning</option>
+            <option value="info">Info</option>
+            <option value="alert">Alert</option>
+          </select>
+        </div>
+        <button class="bp" onclick="sendNotif()">Send Notification</button>
+      </div>
+
+      <!-- LOGS -->
+      <div class="page" id="pg-logs">
+        <div id="logsWrap"><div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><p>No updates yet</p></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SUB: ADD STOCK -->
+<div class="subpage" id="sub-add">
+  <div class="sph"><button class="back-btn" onclick="closeSub('sub-add')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg></button><h2>Add New Stock</h2></div>
+  <div class="sub-content">
+    <div class="fg"><label class="fl">Product Name</label><input class="fi" id="an" placeholder="Enter product name (e.g., Rice, Dal, Oil)"/></div>
+    <div class="fg"><label class="fl">Quantity Received</label><input class="fi" id="aq" type="number" placeholder="e.g., 500" min="0"/></div>
+    <div class="fg"><label class="fl">Unit</label><select class="fs" id="au"><option value="kg">kg</option><option value="litre">litre</option><option value="gram">gram</option><option value="piece">piece</option></select></div>
+    <div class="fg"><label class="fl">Arrival Date</label><input class="fi" id="ad" type="date"/></div>
+    <div class="fg"><label class="fl">Status</label><select class="fs" id="as"><option value="available">Available</option><option value="limited">Limited</option><option value="out_of_stock">Out of Stock</option></select></div>
+    <button class="bp" id="addBtn" onclick="addStock()">Save &amp; Notify Users</button>
+  </div>
+</div>
+
+<!-- SUB: UPDATE LIST -->
+<div class="subpage" id="sub-upd">
+  <div class="sph"><button class="back-btn" onclick="closeSub('sub-upd')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg></button><h2>Update Stock</h2></div>
+  <div class="sub-content">
+    <div style="font-size:0.84rem;font-weight:700;color:var(--muted);margin-bottom:12px">Select a product to update</div>
+    <div class="plist" id="updList"></div>
+  </div>
+</div>
+
+<!-- SUB: UPDATE DETAIL -->
+<div class="subpage" id="sub-upd-det">
+  <div class="sph"><button class="back-btn" onclick="closeSub('sub-upd-det');openSub('sub-upd')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg></button><h2>Update Stock</h2></div>
+  <div class="sub-content">
+    <a href="#" onclick="closeSub('sub-upd-det');openSub('sub-upd');return false;" style="color:var(--blue);font-size:0.83rem;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:4px;margin-bottom:14px;">&#8592; Back to products</a>
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div style="width:42px;height:42px;background:#eff6ff;border-radius:11px;display:flex;align-items:center;justify-content:center"><svg id="ui" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" width="20" height="20"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg></div>
+        <div><div style="font-size:1rem;font-weight:800" id="un">—</div><div id="ub" style="margin-top:3px"></div></div>
+      </div>
+      <div class="ibox" style="margin:0">
+        <div class="ir"><span class="il">Current Stock Level</span><span class="iv" id="ul">—</span></div>
+        <div class="ir"><span class="il">Monthly Quota</span><span class="iv" id="uq">—</span></div>
+        <div class="ir"><span class="il">Last Updated</span><span class="iv" id="ut">—</span></div>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">New Quantity</label><input class="fi" id="uqty" type="number" placeholder="e.g., 400 kg" min="0"/></div>
+    <button class="bp" id="updBtn" onclick="doUpdate()">Update Quantity</button>
+  </div>
+</div>
+
+<!-- SUB: MARK OOS -->
+<div class="subpage" id="sub-oos">
+  <div class="sph"><button class="back-btn" onclick="closeSub('sub-oos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg></button><h2>Mark Out of Stock</h2></div>
+  <div class="sub-content">
+    <div style="font-size:0.84rem;font-weight:700;color:var(--muted);margin-bottom:12px">Select a product to mark as out of stock</div>
+    <div class="plist" id="oosList"></div>
+    <div id="oosConf" style="display:none;margin-top:14px">
+      <div class="cbox">
+        <div class="cbox-icon">&#x26A0;&#xFE0F;</div>
+        <div class="cbox-title" id="oot">Mark as Out of Stock?</div>
+        <div class="cbox-arrow"><span id="oof"></span><span>&#x2192;</span><span class="boo">Out of Stock</span></div>
+        <div class="cbox-msg" id="oom">All beneficiaries will be notified.</div>
+      </div>
+      <button class="bd" id="oosBtn" onclick="confirmOos()">Confirm Out of Stock</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="/shared/api.js"></script>
+<script>
+let user=null,stockData=[],shopOpen=false,editId=null,oosId=null;
+const STOCK_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" width="20" height="20"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>';
+const TMPLS=['Rice stock arrived today.','Sugar currently unavailable.','Wheat stock is limited. Visit soon.','Shop closed tomorrow for maintenance.','New stock available. Collect your monthly quota.','Kerosene supply has arrived.'];
+
+function toast(m,type=''){const t=document.getElementById('toast');t.textContent=m;t.style.background=type==='error'?'#dc2626':'#1a202c';t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.add('open');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('open');}
+function openSub(id){document.getElementById(id).classList.add('active');}
+function closeSub(id){document.getElementById(id).classList.remove('active');}
+
+async function init(){
+  const tok=localStorage.getItem('ration_token'),ud=localStorage.getItem('ration_user');
+  if(!tok||!ud){window.location.href='/staff/index.html';return;}
+  user=JSON.parse(ud);if(user.role!=='staff'&&user.role!=='admin'){api.logout();return;}
+  document.getElementById('sb-name').textContent=user.name;
+  document.getElementById('sb-role').textContent=user.role==='admin'?'Admin':'Staff';
+  document.getElementById('dsh-date').textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('ad').value=new Date().toISOString().split('T')[0];
+  document.getElementById('tplList').innerHTML=TMPLS.map(t=>'<button class="tpl-item" onclick="useTpl(this)">'+t+'</button>').join('');
+  const socket=io();socket.emit('join_shop',user.shop_id);socket.on('stock_updated',()=>loadStock());
+  await Promise.all([loadShop(),loadStock()]);
+}
+
+async function loadShop(){
+  const r=await api.get('/shop/'+user.shop_id);if(!r?.success)return;
+  shopOpen=!!r.data.is_open;
+  document.getElementById('dsh-name').textContent=r.data.shop_name;
+  renderShop();
+}
+function renderShop(){
+  document.getElementById('spill').textContent=shopOpen?'OPEN':'CLOSED';
+  document.getElementById('spill').className='spill '+(shopOpen?'pill-open':'pill-closed');
+  document.getElementById('tbtn').textContent=shopOpen?'Close Shop':'Open Shop';
+  document.getElementById('tbtn').className='toggle-btn '+(shopOpen?'btn-close':'btn-open');
+}
+async function toggleShop(){
+  const r=await api.put('/shop/'+user.shop_id+'/status',{is_open:!shopOpen});
+  if(r?.success){shopOpen=!shopOpen;renderShop();toast('Shop is now '+(shopOpen?'Open':'Closed'));}
+  else toast('Failed','error');
+}
+
+async function loadStock(){
+  const r=await api.get('/stock/'+user.shop_id);if(!r?.success)return;
+  stockData=r.data;
+  const dots={available:'#16a34a',limited:'#d97706',out_of_stock:'#dc2626'};
+  const lbls={available:'Available',limited:'Limited',out_of_stock:'Out Of Stock'};
+  const tcs={available:'t-av',limited:'t-li',out_of_stock:'t-oo'};
+  document.getElementById('stockSummary').innerHTML=stockData.length
+    ?stockData.map(s=>'<div class="stock-row"><div class="sr-icon">'+STOCK_SVG+'</div><div class="sr-name">'+s.item_name+'</div><div class="dot-badge"><div class="dot" style="background:'+dots[s.status]+'"></div><span class="'+tcs[s.status]+'">'+lbls[s.status]+'</span></div></div>').join('')
+    :'<div class="empty"><p>No stock items</p></div>';
+  renderUpdList();renderOosList();
+}
+
+function renderUpdList(){
+  document.getElementById('updList').innerHTML=stockData.length
+    ?stockData.map(s=>'<div class="pitem" onclick="openUpdDet('+s.id+')"><div class="pi-ico">'+STOCK_SVG+'</div><div><div class="pi-nm">'+s.item_name+'</div><div class="pi-sb">Quota: '+s.current_quantity+' '+s.unit+'</div></div><div style="margin-left:auto;display:flex;align-items:center;gap:8px"><div style="width:9px;height:9px;border-radius:50%;background:'+(s.status==='available'?'#16a34a':s.status==='limited'?'#d97706':'#dc2626')+'"></div><svg viewBox="0 0 24 24" fill="none" stroke="#718096" stroke-width="2" width="16" height="16"><polyline points="9,18 15,12 9,6"/></svg></div></div>').join('')
+    :'<div class="empty"><p>No items</p></div>';
+}
+function openUpdDet(id){
+  const s=stockData.find(x=>x.id===id);if(!s)return;editId=id;
+  document.getElementById('un').textContent=s.item_name;
+  const bc=s.status==='available'?'bav':s.status==='limited'?'bli':'boo';
+  const bl=s.status==='available'?'Available':s.status==='limited'?'Limited':'Out of Stock';
+  document.getElementById('ub').innerHTML='<span class="'+bc+'">'+bl+'</span>';
+  document.getElementById('ul').textContent=s.current_quantity>100?'High':s.current_quantity>30?'Medium':'Low';
+  document.getElementById('uq').textContent=s.current_quantity+' '+s.unit;
+  document.getElementById('ut').textContent=timeAgo(s.updated_at);
+  document.getElementById('uqty').value=s.current_quantity;
+  closeSub('sub-upd');openSub('sub-upd-det');
+}
+async function doUpdate(){
+  const qty=parseFloat(document.getElementById('uqty').value);
+  if(isNaN(qty)||qty<0){toast('Enter valid quantity','error');return;}
+  const btn=document.getElementById('updBtn');btn.disabled=true;
+  const r=await api.put('/stock/'+editId,{current_quantity:qty});btn.disabled=false;
+  if(r?.success){toast('Stock updated!');closeSub('sub-upd-det');loadStock();}
+  else toast('Failed','error');
+}
+
+function renderOosList(){
+  const av=stockData.filter(s=>s.status!=='out_of_stock');
+  document.getElementById('oosList').innerHTML=av.length
+    ?av.map(s=>'<div class="pitem" id="oos-'+s.id+'" onclick="selOos('+s.id+')"><div class="pi-ico">'+STOCK_SVG+'</div><div><div class="pi-nm">'+s.item_name+'</div><div class="pi-sb">Qty: '+s.current_quantity+' '+s.unit+' &middot; '+timeAgo(s.updated_at)+'</div></div><div style="margin-left:auto"><span class="'+(s.status==='available'?'bav':'bli')+'">'+(s.status==='available'?'Available':'Limited')+'</span></div></div>').join('')
+    :'<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="44" height="44" style="margin:0 auto 10px;display:block;opacity:0.3"><polyline points="20,6 9,17 4,12"/></svg><p>All items are in stock</p></div>';
+  document.getElementById('oosConf').style.display='none';oosId=null;
+}
+function selOos(id){
+  document.querySelectorAll('#oosList .pitem').forEach(el=>el.classList.remove('sel'));
+  document.getElementById('oos-'+id)?.classList.add('sel');
+  oosId=id;const s=stockData.find(x=>x.id===id);if(!s)return;
+  document.getElementById('oot').textContent='Mark '+s.item_name+' as Out of Stock?';
+  document.getElementById('oof').innerHTML='<span class="'+(s.status==='available'?'bav':'bli')+'">'+(s.status==='available'?'Available':'Limited')+'</span>';
+  document.getElementById('oom').textContent='All beneficiaries will be notified that '+s.item_name+' is unavailable.';
+  document.getElementById('oosConf').style.display='block';
+  document.getElementById('oosConf').scrollIntoView({behavior:'smooth'});
+}
+async function confirmOos(){
+  if(!oosId)return;const btn=document.getElementById('oosBtn');btn.disabled=true;
+  const r=await api.put('/stock/'+oosId,{current_quantity:0,status:'out_of_stock'});btn.disabled=false;
+  if(r?.success){
+    const s=stockData.find(x=>x.id===oosId);
+    if(s)await api.post('/notifications',{shop_id:user.shop_id,title:s.item_name+' Out of Stock',message:s.item_name+' is currently unavailable. We will notify when restocked.',type:'warning'});
+    toast('Marked OOS & beneficiaries notified!');closeSub('sub-oos');loadStock();
+  }else toast('Failed','error');
+}
+
+async function addStock(){
+  const name=document.getElementById('an').value.trim();
+  const qty=parseFloat(document.getElementById('aq').value)||0;
+  const unit=document.getElementById('au').value;
+  const status=document.getElementById('as').value;
+  if(!name){toast('Product name required','error');return;}
+  const btn=document.getElementById('addBtn');btn.disabled=true;
+  const r=await api.post('/stock',{shop_id:user.shop_id,item_name:name,current_quantity:qty,unit,status});btn.disabled=false;
+  if(r?.success){
+    await api.post('/notifications',{shop_id:user.shop_id,title:name+' Now Available',message:'New stock of '+name+' ('+qty+' '+unit+') has arrived at the shop.',type:'stock'});
+    toast('Stock added & users notified!');document.getElementById('an').value='';document.getElementById('aq').value='';
+    closeSub('sub-add');loadStock();
+  }else toast(r?.message||'Failed','error');
+}
+
+function useTpl(el){document.getElementById('nMsg').value=el.textContent;}
+async function sendNotif(){
+  const msg=document.getElementById('nMsg').value.trim();const type=document.getElementById('nType').value;
+  if(!msg){toast('Write a message','error');return;}
+  const r=await api.post('/notifications',{shop_id:user.shop_id,title:msg.slice(0,50),message:msg,type});
+  if(r?.success){toast('Notification sent to all beneficiaries!');document.getElementById('nMsg').value='';}
+  else toast('Failed','error');
+}
+
+async function loadLogs(){
+  const el=document.getElementById('logsWrap');
+  el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted)"><div style="font-size:1.5rem;margin-bottom:8px;animation:spin 1s linear infinite;display:inline-block">&#x23F3;</div><p style="font-size:0.88rem;font-weight:600">Loading activity logs...</p></div>';
+  const r=await api.get('/logs/'+user.shop_id+'?limit=50');
+  if(!r){el.innerHTML='<div class="empty"><p>Connection error. <button onclick="loadLogs()" style="color:var(--blue);background:none;border:none;cursor:pointer;font-weight:700;font-family:inherit">Retry</button></p></div>';return;}
+  if(!r.success){el.innerHTML='<div class="empty"><p>'+r.message+' <button onclick="loadLogs()" style="color:var(--blue);background:none;border:none;cursor:pointer;font-weight:700;font-family:inherit">Retry</button></p></div>';return;}
+  const m={
+    stock_add:{l:'Added',c:'la'},
+    stock_update:{l:'Updated',c:'lu'},
+    stock_delete:{l:'Deleted',c:'lo'},
+    notification_send:{l:'Notification',c:'ln'},
+    shop_status_change:{l:'Status Changed',c:'ls'},
+    staff_login:{l:'Login',c:'lx'},
+    other:{l:'Other',c:'lx'}
+  };
+  if(!r.data.length){
+    el.innerHTML='<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="44" height="44" style="margin:0 auto 10px;display:block;opacity:0.3"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><p>No activity logs yet.<br><span style="font-size:0.8rem;opacity:0.7">Logs appear after stock updates, notifications, and shop status changes.</span></p></div>';
+    return;
+  }
+  el.innerHTML=r.data.map(l=>{
+    const t=m[l.action_type]||m.other;
+    const dateStr=new Date(l.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+    const timeStr=new Date(l.created_at).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+    return '<div class="log-item"><div class="log-top"><div class="log-date">'+dateStr+' &bull; '+timeStr+'</div><span class="log-badge '+t.c+'">'+t.l+'</span></div><div class="log-desc">'+l.description+'</div><div class="log-by">by '+(l.staff_name||'System')+'</div></div>';
+  }).join('');
+  // Show total count
+  if(r.total>0){
+    el.insertAdjacentHTML('beforeend','<div style="text-align:center;padding:12px;font-size:0.78rem;color:var(--muted)">Showing '+r.data.length+' of '+r.total+' total logs</div>');
+  }
+}
+
+const PAGE_TITLES={dashboard:'Dashboard',stock:'Stock Management',notify:'Send Notifications',logs:'Activity Logs'};
+function goPage(n){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('pg-'+n).classList.add('active');
+  document.getElementById('nav-'+n).classList.add('active');
+  document.getElementById('page-title').textContent=PAGE_TITLES[n]||n;
+  if(n==='logs') loadLogs();
+  closeSidebar();
+}
+
+init();
+</script>
+</body>
+</html>

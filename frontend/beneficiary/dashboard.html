@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Ration Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Noto+Sans+Tamil:wght@400;600&display=swap" rel="stylesheet"/>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    :root{--blue:#2563eb;--blue-dark:#1d4ed8;--bg:#f0f4f8;--text:#1a202c;--muted:#718096;--border:#e2e8f0;--green:#16a34a;--orange:#d97706;--red:#dc2626;}
+    body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;min-height:100vh;}
+    .app-shell{display:flex;flex:1;}
+    /* Sidebar */
+    .sidebar{width:220px;background:linear-gradient(160deg,#1e3a5f,#1d4ed8);color:white;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:50;transition:transform 0.3s;}
+    .sb-logo{padding:20px 16px 14px;border-bottom:1px solid rgba(255,255,255,0.1);}
+    .sb-logo-inner{display:flex;align-items:center;gap:10px;}
+    .sb-logo-icon{width:36px;height:36px;background:rgba(255,255,255,0.2);border-radius:9px;display:flex;align-items:center;justify-content:center;}
+    .sb-logo-icon svg{width:18px;height:18px;}
+    .sb-logo-text{font-size:0.92rem;font-weight:800;line-height:1.2;}
+    .sb-user{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.08);}
+    .sb-user-name{font-size:0.86rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .sb-user-card{font-size:0.7rem;opacity:0.7;margin-top:2px;}
+    .sb-nav{flex:1;padding:10px 8px;overflow-y:auto;}
+    .sb-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;cursor:pointer;font-size:0.86rem;font-weight:600;color:rgba(255,255,255,0.7);border:none;background:none;width:100%;text-align:left;transition:all 0.2s;margin-bottom:2px;}
+    .sb-item:hover{background:rgba(255,255,255,0.1);color:white;}
+    .sb-item.active{background:rgba(255,255,255,0.18);color:white;}
+    .sb-item svg{width:17px;height:17px;flex-shrink:0;}
+    .sb-badge{margin-left:auto;background:#ef4444;color:white;font-size:0.6rem;font-weight:800;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;}
+    .sb-footer{padding:12px 8px;border-top:1px solid rgba(255,255,255,0.08);}
+    /* Language selector in sidebar */
+    .lang-sb-wrap{position:relative;margin-bottom:8px;}
+    .lang-sb-btn{width:100%;padding:9px 12px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:9px;color:white;font-family:inherit;font-size:0.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:space-between;}
+    .lang-sb-btn:hover{background:rgba(255,255,255,0.2);}
+    .lang-sb-drop{position:absolute;bottom:calc(100% + 6px);left:0;right:0;background:white;border-radius:10px;box-shadow:0 -8px 24px rgba(0,0,0,0.15);overflow:hidden;z-index:100;display:none;}
+    .lang-sb-drop.open{display:block;}
+    .lang-sb-opt{padding:10px 14px;font-size:0.86rem;font-weight:600;color:#1a202c;cursor:pointer;transition:background 0.15s;}
+    .lang-sb-opt:hover{background:#eff6ff;color:var(--blue);}
+    .lang-sb-opt.sel{background:#eff6ff;color:var(--blue);font-weight:800;}
+    .logout-btn{width:100%;padding:10px 12px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px;}
+    .logout-btn:hover{background:rgba(239,68,68,0.3);color:white;}
+    .logout-btn svg{width:15px;height:15px;}
+    /* Main */
+    .main{margin-left:220px;flex:1;display:flex;flex-direction:column;min-height:100vh;}
+    .topbar{background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:white;padding:16px 26px;position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;}
+    .topbar h1{font-size:1.3rem;font-weight:800;}
+    .topbar-right{display:flex;gap:10px;align-items:center;}
+    .icon-btn{background:rgba(255,255,255,0.18);border:none;color:white;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;}
+    .icon-btn:hover{background:rgba(255,255,255,0.3);}
+    .icon-btn svg{width:17px;height:17px;}
+    .notif-dot{position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#ef4444;border:2px solid var(--blue);}
+    .hamburger{display:none;background:rgba(255,255,255,0.18);border:none;color:white;width:36px;height:36px;border-radius:8px;align-items:center;justify-content:center;cursor:pointer;}
+    .hamburger svg{width:19px;height:19px;}
+    .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:49;}
+    .content{padding:22px 26px;flex:1;}
+    .page{display:none;}.page.active{display:block;animation:fadeUp 0.25s ease;}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+    /* Shop card */
+    .shop-card{background:white;border-radius:16px;padding:18px 20px;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:20px;}
+    .shop-name{font-size:1rem;font-weight:800;margin-bottom:10px;}
+    .shop-row{display:flex;align-items:center;gap:8px;font-size:0.84rem;color:var(--muted);margin-bottom:7px;}
+    .shop-row:last-child{margin-bottom:0;}
+    .shop-row svg{width:15px;height:15px;flex-shrink:0;}
+    .shop-row-inner{display:flex;align-items:center;justify-content:space-between;width:100%;}
+    .status-pill{padding:5px 14px;border-radius:20px;font-size:0.78rem;font-weight:800;}
+    .pill-open{background:#dcfce7;color:var(--green);}
+    .pill-closed{background:#fee2e2;color:var(--red);}
+    /* Stock */
+    .section-title{font-size:0.95rem;font-weight:800;margin-bottom:14px;}
+    .stock-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;}
+    .stock-card{background:white;border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,0.05);position:relative;cursor:pointer;transition:transform 0.2s;}
+    .stock-card:hover{transform:translateY(-2px);}
+    .new-badge{position:absolute;top:10px;right:10px;background:#dcfce7;color:var(--green);font-size:0.65rem;font-weight:800;padding:2px 8px;border-radius:10px;}
+    .stock-ico{width:44px;height:44px;background:#eff6ff;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;}
+    .stock-ico svg{width:22px;height:22px;color:#2563eb;}
+    .stock-name{font-size:0.9rem;font-weight:700;margin-bottom:8px;}
+    .s-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:0.74rem;font-weight:700;}
+    .s-av{background:#dcfce7;color:var(--green);}
+    .s-li{background:#fef3c7;color:var(--orange);}
+    .s-oo{background:#fee2e2;color:var(--red);}
+    .stock-time{font-size:0.72rem;color:var(--muted);margin-top:6px;}
+    /* Notifications */
+    .notif-item{background:white;border-radius:14px;padding:14px 16px;margin-bottom:10px;display:flex;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,0.05);}
+    .ni-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .ni-icon svg{width:20px;height:20px;}
+    .ni-stock{background:#dcfce7;color:var(--green);}.ni-warning{background:#fef3c7;color:var(--orange);}.ni-alert{background:#fee2e2;color:var(--red);}.ni-info{background:#dbeafe;color:var(--blue);}.ni-general{background:#f3f4f6;color:#374151;}
+    .ni-title{font-size:0.88rem;font-weight:800;display:flex;align-items:center;gap:6px;}
+    .ni-msg{font-size:0.81rem;color:var(--muted);margin-top:4px;line-height:1.5;}
+    .ni-time{font-size:0.72rem;color:#a0aec0;margin-top:5px;}
+    .unread-dot{width:7px;height:7px;border-radius:50%;background:var(--blue);display:inline-block;}
+    /* Quota */
+    .quota-item{background:white;border-radius:14px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 8px rgba(0,0,0,0.05);}
+    .qi-icon{width:44px;height:44px;background:#eff6ff;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .qi-icon svg{width:22px;height:22px;color:#2563eb;}
+    .qi-name{font-size:0.92rem;font-weight:700;}
+    .qi-sub{font-size:0.78rem;color:var(--muted);margin-top:2px;}
+    .qi-qty{margin-left:auto;font-size:1.1rem;font-weight:800;color:var(--blue);}
+    .info-msg{border-radius:12px;padding:12px 14px;font-size:0.82rem;font-weight:600;margin-bottom:10px;}
+    .info-green{background:#f0fdf4;border:1px solid #bbf7d0;color:var(--green);}
+    .info-yellow{background:#fffbeb;border:1px solid #fde68a;color:var(--orange);}
+    .month-sel{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:11px;font-family:inherit;font-size:0.9rem;font-weight:700;color:var(--text);background:white;outline:none;margin-bottom:16px;}
+    /* Feedback */
+    .fg{margin-bottom:16px;}.fl{font-size:0.88rem;font-weight:700;color:var(--text);display:block;margin-bottom:8px;}
+    .fi,.fs,.fta{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:11px;font-family:inherit;font-size:0.9rem;color:var(--text);background:white;outline:none;transition:border-color 0.2s;}
+    .fi:focus,.fs:focus,.fta:focus{border-color:var(--blue);}
+    .fta{resize:vertical;min-height:100px;}
+    .stars{display:flex;gap:8px;margin-top:4px;}
+    .star{font-size:1.8rem;cursor:pointer;color:#e2e8f0;transition:color 0.15s;-webkit-text-stroke:1.5px #9ca3af;line-height:1;}
+    .star.active{color:#f59e0b;-webkit-text-stroke:0;}
+    .submit-btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:white;border:none;border-radius:11px;font-size:0.95rem;font-weight:700;font-family:inherit;cursor:pointer;box-shadow:0 4px 14px rgba(37,99,235,0.3);}
+    /* Subpage */
+    .subpage{display:none;position:fixed;inset:0;background:var(--bg);z-index:200;overflow-y:auto;}
+    .subpage.active{display:block;animation:slideUp 0.3s ease;}
+    @keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
+    .subpage-header{background:linear-gradient(135deg,var(--blue),var(--blue-dark));padding:18px 20px;color:white;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5;}
+    .back-btn{background:rgba(255,255,255,0.2);border:none;color:white;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+    .back-btn svg{width:18px;height:18px;}
+    .subpage-header h2{font-size:1.1rem;font-weight:800;}
+    .detail-content{max-width:600px;margin:0 auto;padding:16px;}
+    .detail-hero{background:white;border-radius:16px;padding:20px;text-align:center;margin-bottom:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);}
+    .detail-icon{width:64px;height:64px;background:#eff6ff;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;}
+    .detail-icon svg{width:32px;height:32px;color:#2563eb;}
+    .detail-name{font-size:1.2rem;font-weight:800;margin-bottom:8px;}
+    .info-rows{background:white;border-radius:14px;padding:4px 16px;margin-bottom:12px;box-shadow:0 2px 10px rgba(0,0,0,0.06);}
+    .info-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);}
+    .info-row:last-child{border-bottom:none;}
+    .info-row .lbl{font-size:0.85rem;color:var(--muted);font-weight:600;}
+    .info-row .val{font-size:0.85rem;font-weight:800;}
+    .val-green{color:var(--green);}
+    .arrived-banner{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px 16px;font-size:0.83rem;color:var(--green);font-weight:600;margin-bottom:12px;text-align:center;}
+    .collect-card{background:white;border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,0.06);margin-bottom:12px;}
+    .collect-title{font-size:0.92rem;font-weight:800;margin-bottom:4px;}
+    .collect-sub{font-size:0.8rem;color:var(--muted);margin-bottom:14px;}
+    .collect-opt{width:100%;padding:13px 16px;border:1.5px solid var(--border);border-radius:11px;background:white;font-family:inherit;font-size:0.9rem;font-weight:600;color:var(--text);cursor:pointer;margin-bottom:10px;display:flex;align-items:center;gap:10px;transition:all 0.2s;}
+    .collect-opt:hover{border-color:var(--blue);background:#eff6ff;}
+    .collect-opt.sel{border-color:var(--blue);background:#eff6ff;color:var(--blue);}
+    .collect-opt svg{width:18px;height:18px;}
+    .collect-submit{width:100%;padding:13px;background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:white;border:none;border-radius:11px;font-family:inherit;font-size:0.9rem;font-weight:700;cursor:pointer;margin-top:4px;display:none;}
+    .collect-submit.show{display:block;}
+    /* Voice modal */
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.3s;}
+    .modal-bg.open{opacity:1;pointer-events:all;}
+    .modal-sheet{background:white;border-radius:22px 22px 0 0;width:100%;max-width:520px;padding:22px 20px 30px;transform:translateY(100%);transition:transform 0.3s;}
+    .modal-bg.open .modal-sheet{transform:none;}
+    .modal-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 18px;}
+    .modal-close-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+    .modal-title{font-size:1.05rem;font-weight:800;}
+    .modal-close-x{background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--muted);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+    .voice-opt{width:100%;padding:14px 16px;border:1.5px solid var(--border);border-radius:12px;background:white;font-family:inherit;font-size:0.9rem;font-weight:700;color:var(--text);cursor:pointer;margin-bottom:10px;display:flex;align-items:center;gap:14px;transition:all 0.2s;}
+    .voice-opt:hover{border-color:var(--blue);background:#eff6ff;color:var(--blue);}
+    .vo-ic{width:40px;height:40px;background:#eff6ff;border-radius:11px;display:flex;align-items:center;justify-content:center;}
+    .vo-ic svg{width:20px;height:20px;color:#2563eb;}
+    /* FAB */
+    .voice-fab{position:fixed;bottom:30px;right:28px;width:54px;height:54px;background:linear-gradient(135deg,var(--blue),var(--blue-dark));border:none;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 20px rgba(37,99,235,0.4);z-index:100;transition:all 0.2s;}
+    .voice-fab:hover{transform:scale(1.08);}
+    .voice-fab svg{width:24px;height:24px;color:white;}
+    .empty{text-align:center;padding:48px 20px;color:var(--muted);}
+    .empty svg{width:48px;height:48px;margin:0 auto 12px;display:block;opacity:0.35;}
+    .empty p{font-size:0.9rem;font-weight:600;}
+    .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:#1a202c;color:white;padding:12px 22px;border-radius:10px;font-size:0.85rem;font-weight:600;z-index:9999;transition:transform 0.3s;white-space:nowrap;max-width:90vw;text-align:center;}
+    .toast.show{transform:translateX(-50%) translateY(0);}
+    /* Responsive */
+    @media(max-width:768px){
+      .sidebar{transform:translateX(-100%);}
+      .sidebar.open{transform:none;}
+      .overlay.open{display:block;}
+      .main{margin-left:0;}
+      .hamburger{display:flex;}
+      .content{padding:16px 14px;}
+      .stock-grid{grid-template-columns:repeat(2,1fr);}
+    }
+    @media(min-width:1200px){.stock-grid{grid-template-columns:repeat(4,1fr);}}
+  </style>
+</head>
+<body>
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+<div class="app-shell">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-inner">
+        <div class="sb-logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg></div>
+        <div class="sb-logo-text">Ration<br/>System</div>
+      </div>
+    </div>
+    <div class="sb-user">
+      <div class="sb-user-name" id="sb-name">—</div>
+      <div class="sb-user-card" id="sb-card">—</div>
+    </div>
+    <nav class="sb-nav">
+      <button class="sb-item active" id="nav-home" onclick="goPage('home')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+        <span data-translate="Dashboard">Dashboard</span>
+      </button>
+      <button class="sb-item" id="nav-monthly" onclick="goPage('monthly')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span data-translate="Monthly Quota">Monthly Quota</span>
+      </button>
+      <button class="sb-item" id="nav-alerts" onclick="goPage('alerts')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <span data-translate="Alerts">Alerts</span>
+        <span class="sb-badge" id="unread-badge" style="display:none">0</span>
+      </button>
+      <button class="sb-item" id="nav-feedback" onclick="goPage('feedback')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        <span data-translate="Feedback">Feedback</span>
+      </button>
+    </nav>
+    <div class="sb-footer">
+      <div class="lang-sb-wrap">
+        <button class="lang-sb-btn" onclick="toggleSbLang()" id="sbLangBtn">
+          <span>&#x1F310; <span id="sbLangLabel">English</span></span>
+          <span>&#x25BE;</span>
+        </button>
+        <div class="lang-sb-drop" id="sbLangDrop">
+          <div class="lang-sb-opt sel" onclick="changeLang('en')">&#x1F1EC;&#x1F1E7; English</div>
+          <div class="lang-sb-opt" onclick="changeLang('ta')">&#x1F1EE;&#x1F1F3; Tamil</div>
+          <div class="lang-sb-opt" onclick="changeLang('hi')">&#x1F1EE;&#x1F1F3; Hindi</div>
+        </div>
+      </div>
+      <button class="logout-btn" onclick="api.logout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span data-translate="Logout">Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="hamburger" onclick="openSidebar()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <h1 id="page-title" data-translate="Dashboard">Dashboard</h1>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" onclick="api.logout()" title="Logout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
+        <button class="icon-btn" onclick="goPage('alerts')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg><span class="notif-dot" id="topbar-dot" style="display:none"></span></button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- HOME -->
+      <div class="page active" id="pg-home">
+        <div class="shop-card" id="shopCard">
+          <div class="shop-name" id="shopName">Loading...</div>
+          <div class="shop-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg><span id="shopAddr">—</span></div>
+          <div class="shop-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+            <div class="shop-row-inner"><span id="shopHours">—</span><span class="status-pill" id="shopStatus">—</span></div>
+          </div>
+        </div>
+        <div class="section-title" id="stock-title" data-translate="Today's Ration Status">Today's Ration Status</div>
+        <div class="stock-grid" id="stockGrid">
+          <div class="empty" style="grid-column:1/-1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg><p data-translate="Loading stock...">Loading stock...</p></div>
+        </div>
+      </div>
+
+      <!-- MONTHLY -->
+      <div class="page" id="pg-monthly">
+        <select class="month-sel" id="monthSel" onchange="loadQuota()"></select>
+        <div id="quotaList"><div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg><p data-translate="Loading...">Loading...</p></div></div>
+        <div class="info-msg info-green" style="margin-top:12px"><span data-translate="Distribution for this month has started. Visit your ration shop.">&#x1F4E3; Distribution for this month has started. Visit your ration shop.</span></div>
+        <div class="info-msg info-yellow"><span data-translate="Reminder: Collect your ration before end of month.">&#x23F0; Reminder: Collect your ration before end of month.</span></div>
+      </div>
+
+      <!-- ALERTS -->
+      <div class="page" id="pg-alerts">
+        <div id="notifList"><div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg><p data-translate="Loading notifications...">Loading notifications...</p></div></div>
+      </div>
+
+      <!-- FEEDBACK -->
+      <div class="page" id="pg-feedback">
+        <div style="max-width:600px">
+          <div class="fg">
+            <label class="fl" data-translate="Issue Type">Issue Type</label>
+            <select class="fs" id="fbCat">
+              <option value="" data-translate-option="Select an issue">Select an issue</option>
+              <option value="complaint" data-translate-option="Complaint">Complaint</option>
+              <option value="suggestion" data-translate-option="Suggestion">Suggestion</option>
+              <option value="appreciation" data-translate-option="Appreciation">Appreciation</option>
+              <option value="inquiry" data-translate-option="Inquiry">Inquiry</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="fl" data-translate="Rate your Ration Shop">Rate your Ration Shop</label>
+            <div class="stars" id="starRow">
+              <span class="star" onclick="rateStar(1)">&#9733;</span>
+              <span class="star" onclick="rateStar(2)">&#9733;</span>
+              <span class="star" onclick="rateStar(3)">&#9733;</span>
+              <span class="star" onclick="rateStar(4)">&#9733;</span>
+              <span class="star" onclick="rateStar(5)">&#9733;</span>
+            </div>
+          </div>
+          <div class="fg">
+            <label class="fl" data-translate="Comments (optional)">Comments (optional)</label>
+            <textarea class="fta" id="fbMsg" data-translate-placeholder="Write your feedback here..." placeholder="Write your feedback here..."></textarea>
+          </div>
+          <button class="submit-btn" id="fbBtn" onclick="submitFeedback()">
+            <span data-translate="Submit Feedback">Submit Feedback</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Stock Detail Subpage -->
+<div class="subpage" id="stockDetail">
+  <div class="subpage-header">
+    <button class="back-btn" onclick="closeDetail()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg></button>
+    <h2 id="det-name">—</h2>
+  </div>
+  <div class="detail-content">
+    <div class="detail-hero">
+      <div class="detail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg></div>
+      <div class="detail-name" id="det-name2">—</div>
+      <div id="det-badge"></div>
+    </div>
+    <div class="info-rows">
+      <div class="info-row"><span class="lbl" data-translate="Stock Level">Stock Level</span><span class="val val-green" id="det-level">—</span></div>
+      <div class="info-row"><span class="lbl" data-translate="Monthly Quota">Monthly Quota</span><span class="val" id="det-quota">—</span></div>
+      <div class="info-row"><span class="lbl" data-translate="Last Updated">Last Updated</span><span class="val" id="det-updated">—</span></div>
+    </div>
+    <div class="arrived-banner" data-translate="Newly Arrived — Visit your ration shop today!">&#x2728; Newly Arrived — Visit your ration shop today!</div>
+    <div class="collect-card">
+      <div class="collect-title" data-translate="Ration Collection Confirmation">Ration Collection Confirmation</div>
+      <div class="collect-sub" data-translate="Did you receive your ration today?">Did you receive your ration today?</div>
+      <button class="collect-opt" onclick="selectCollect(this,'full')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg>
+        <span data-translate="Full Received">Full Received</span>
+      </button>
+      <button class="collect-opt" onclick="selectCollect(this,'partial')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+        <span data-translate="Partial Received">Partial Received</span>
+      </button>
+      <button class="collect-opt" onclick="selectCollect(this,'none')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <span data-translate="Not Received">Not Received</span>
+      </button>
+      <button class="collect-submit" id="collectSubmitBtn" onclick="submitCollection()">
+        <span data-translate="Submit">Submit</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Voice Modal -->
+<div class="modal-bg" id="voiceModal" onclick="closeVoiceModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-close-row">
+      <div class="modal-title" data-translate="Voice Assistant">Voice Assistant</div>
+      <button class="modal-close-x" onclick="document.getElementById('voiceModal').classList.remove('open')">&#x2715;</button>
+    </div>
+    <div style="font-size:0.82rem;color:var(--muted);margin-bottom:18px" data-translate="What would you like to know?">What would you like to know?</div>
+    <button class="voice-opt" onclick="speak('stock')"><div class="vo-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg></div><span data-translate="Stock Status">Stock Status</span></button>
+    <button class="voice-opt" onclick="speak('shop')"><div class="vo-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg></div><span data-translate="Shop Status">Shop Status</span></button>
+    <button class="voice-opt" onclick="speak('quota')"><div class="vo-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><span data-translate="Monthly Quota">Monthly Quota</span></button>
+    <button class="voice-opt" onclick="speak('updated')"><div class="vo-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg></div><span data-translate="Last Updated">Last Updated</span></button>
+    <button class="voice-opt" onclick="speak('notif')"><div class="vo-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></div><span data-translate="Last Notification">Last Notification</span></button>
+  </div>
+</div>
+
+<button class="voice-fab" id="voiceFab" onclick="openVoiceModal()">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+</button>
+<div class="toast" id="toast"></div>
+
+<script src="/shared/api.js"></script>
+<script src="/shared/i18n.js"></script>
+<script>
+let user=null,shopData=null,stockData=[],quotaData=[],notifData=[],starRating=0,selectedCollect=null,currentDetailId=null;
+const STOCK_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>';
+const LANG_LABELS={en:'English',ta:'Tamil',hi:'Hindi'};
+
+function toast(m,type=''){const t=document.getElementById('toast');t.textContent=m;t.style.background=type==='error'?'#dc2626':'#1a202c';t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.add('open');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('open');}
+
+// Language functions
+function toggleSbLang(){document.getElementById('sbLangDrop').classList.toggle('open');}
+document.addEventListener('click',e=>{if(!e.target.closest('.lang-sb-wrap'))document.getElementById('sbLangDrop').classList.remove('open');});
+
+function changeLang(l){
+  document.getElementById('sbLangDrop').classList.remove('open');
+  document.querySelectorAll('.lang-sb-opt').forEach((o,i)=>o.classList.toggle('sel',['en','ta','hi'][i]===l));
+  document.getElementById('sbLangLabel').textContent=LANG_LABELS[l];
+  // Instant translation - no API call, no loading
+  TranslationEngine.setLanguage(l, () => {
+    renderStock();
+    if(quotaData.length) renderQuota();
+    renderNotifications();
+    updatePageTitle(currentPage);
+    renderShop();
+  });
+}
+
+let currentPage='home';
+const PAGE_TITLE_KEYS={home:'Dashboard',monthly:'Monthly Quota',alerts:'Alerts',feedback:'Feedback & Support'};
+function updatePageTitle(name){
+  document.getElementById('page-title').textContent = TranslationEngine.t(PAGE_TITLE_KEYS[name]||name);
+}
+
+async function init(){
+  const tok=localStorage.getItem('ration_token'),ud=localStorage.getItem('ration_user');
+  if(!tok||!ud){window.location.href='/beneficiary/index.html';return;}
+  user=JSON.parse(ud);if(user.role!=='beneficiary'){api.logout();return;}
+  // Show name and card - these are NOT translated (user data)
+  document.getElementById('sb-name').textContent=user.name;
+  document.getElementById('sb-card').textContent=user.card_type+' Card · '+user.ration_card_number;
+  // Month selector
+  const sel=document.getElementById('monthSel');
+  const now=new Date();
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  for(let i=0;i<12;i++){const o=document.createElement('option');o.value=i+1;o.textContent=months[i]+' '+now.getFullYear();if(i===now.getMonth())o.selected=true;sel.appendChild(o);}
+  // Socket
+  const socket=io();socket.emit('join_shop',user.shop_id);
+  socket.on('stock_updated',()=>{loadStock();toast(TranslationEngine.t('Loading stock...'));});
+  socket.on('shop_status_changed',d=>{if(shopData){shopData.is_open=d.is_open;renderShop();}});
+  socket.on('new_notification',()=>{loadNotifications();});
+  // Init translation first, then load data
+  TranslationEngine.init(lang => {
+    document.querySelectorAll('.lang-sb-opt').forEach((o,i)=>o.classList.toggle('sel',['en','ta','hi'][i]===lang));
+    document.getElementById('sbLangLabel').textContent=LANG_LABELS[lang]||'English';
+    Promise.all([loadShop(),loadStock(),loadNotifications()]);
+  });
+}
+
+async function loadShop(){const r=await api.get('/shop/'+user.shop_id);if(!r?.success)return;shopData=r.data;renderShop();}
+function renderShop(){
+  if(!shopData)return;
+  document.getElementById('shopName').textContent='PDS Shop – '+shopData.shop_name;
+  document.getElementById('shopAddr').textContent=shopData.address;
+  document.getElementById('shopHours').textContent=formatTime(shopData.opening_time)+' – '+formatTime(shopData.closing_time);
+  const sp=document.getElementById('shopStatus');
+  sp.textContent=TranslationEngine.t(shopData.is_open?'OPEN':'CLOSED');
+  sp.className='status-pill '+(shopData.is_open?'pill-open':'pill-closed');
+}
+
+async function loadStock(){const r=await api.get('/stock/'+user.shop_id);if(!r?.success)return;stockData=r.data;renderStock();}
+async function renderStock(){
+  const g=document.getElementById('stockGrid');
+  if(!stockData.length){g.innerHTML='<div class="empty" style="grid-column:1/-1">'+STOCK_SVG+'<p>'+TranslationEngine.t('No stock updates available')+'</p></div>';return;}
+  // Translate stock names dynamically
+  const cards = await Promise.all(stockData.map(async s=>{
+    // Translate item name dynamically
+    const name = await TranslationEngine.translateDynamic(s.item_name);
+    const sc=s.status==='available'?'s-av':s.status==='limited'?'s-li':'s-oo';
+    const statusEn=s.status==='available'?'Available':s.status==='limited'?'Limited':'Out of Stock';
+    const sl=TranslationEngine.t(statusEn);
+    const isNew=s.status==='available';
+    return '<div class="stock-card" onclick="openDetail('+s.id+')">'+(isNew?'<div class="new-badge">NEW</div>':'')+'<div class="stock-ico">'+STOCK_SVG+'</div><div class="stock-name">'+name+'</div><span class="s-badge '+sc+'">'+sl+'</span><div class="stock-time">'+timeAgo(s.updated_at)+'</div></div>';
+  }));
+  g.innerHTML=cards.join('');
+}
+
+async function openDetail(id){
+  const s=stockData.find(x=>x.id===id);if(!s)return;
+  currentDetailId=id;selectedCollect=null;
+  document.querySelectorAll('.collect-opt').forEach(b=>b.classList.remove('sel'));
+  document.getElementById('collectSubmitBtn').classList.remove('show');
+  const name=await TranslationEngine.translateDynamic(s.item_name);
+  document.getElementById('det-name').textContent=name;
+  document.getElementById('det-name2').textContent=name;
+  const sc=s.status==='available'?'s-av':s.status==='limited'?'s-li':'s-oo';
+  const statusEn=s.status==='available'?'Available':s.status==='limited'?'Limited':'Out of Stock';
+  document.getElementById('det-badge').innerHTML='<span class="s-badge '+sc+'">'+TranslationEngine.t(statusEn)+'</span>';
+  const levelEn=s.current_quantity>100?'High':s.current_quantity>30?'Medium':'Low';
+  document.getElementById('det-level').textContent=TranslationEngine.t(levelEn);
+  const q=quotaData.find(x=>x.item_name.toLowerCase()===s.item_name.toLowerCase());
+  const qKey=(user.card_type||'bpl').toLowerCase()+'_quota';
+  document.getElementById('det-quota').textContent=q?(q[qKey]||0)+' '+q.unit:'—';
+  document.getElementById('det-updated').textContent=timeAgo(s.updated_at);
+  // Apply translations to subpage
+  TranslationEngine.applyToDOM();
+  document.getElementById('stockDetail').classList.add('active');
+}
+function closeDetail(){document.getElementById('stockDetail').classList.remove('active');}
+function selectCollect(btn,type){
+  document.querySelectorAll('.collect-opt').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');selectedCollect=type;
+  document.getElementById('collectSubmitBtn').classList.add('show');
+}
+async function submitCollection(){
+  if(!selectedCollect)return;
+  toast(TranslationEngine.t('Collection status saved'));
+  await api.post('/feedback',{shop_id:user.shop_id,category:'inquiry',subject:'Collection: '+selectedCollect,message:'Item collection status: '+selectedCollect+' for item ID '+currentDetailId});
+  setTimeout(closeDetail,600);
+}
+
+async function loadQuota(){
+  const month=document.getElementById('monthSel')?.value||new Date().getMonth()+1;
+  const r=await api.get('/quota/'+user.shop_id+'?month='+month+'&year='+new Date().getFullYear());
+  if(!r?.success)return;quotaData=r.data;renderQuota();
+}
+async function renderQuota(){
+  const qKey=(user.card_type||'bpl').toLowerCase()+'_quota';
+  const el=document.getElementById('quotaList');
+  if(!quotaData.length){el.innerHTML='<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48" style="margin:0 auto 12px;display:block;opacity:0.35"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg><p>'+TranslationEngine.t('No quota data available')+'</p></div>';return;}
+  const subLabel=TranslationEngine.t('Monthly quota');
+  const items=await Promise.all(quotaData.map(async q=>{
+    const name=await TranslationEngine.translateDynamic(q.item_name);
+    return '<div class="quota-item"><div class="qi-icon">'+STOCK_SVG+'</div><div><div class="qi-name">'+name+'</div><div class="qi-sub">'+subLabel+'</div></div><div class="qi-qty">'+(q[qKey]||0)+' '+(q.unit==='litre'?'L':q.unit)+'</div></div>';
+  }));
+  el.innerHTML=items.join('');
+}
+
+async function loadNotifications(){
+  const r=await api.get('/notifications/'+user.shop_id);if(!r?.success)return;
+  notifData=r.data;
+  const cnt=r.unread_count||0;
+  const badge=document.getElementById('unread-badge');badge.style.display=cnt>0?'flex':'none';badge.textContent=cnt;
+  document.getElementById('topbar-dot').style.display=cnt>0?'block':'none';
+  renderNotifications();
+}
+async function renderNotifications(){
+  const el=document.getElementById('notifList');
+  if(!notifData.length){el.innerHTML='<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48" style="margin:0 auto 12px;display:block;opacity:0.35"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg><p>'+TranslationEngine.t('No updates yet')+'</p></div>';return;}
+  const niClass={stock:'ni-stock',warning:'ni-warning',alert:'ni-alert',info:'ni-info',general:'ni-general'};
+  const niSVG={stock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/></svg>',warning:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>',alert:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/></svg>',general:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg>'};
+  // Translate notification content dynamically
+  const items=await Promise.all(notifData.map(async n=>{
+    const title=await TranslationEngine.translateDynamic(n.title);
+    const msg=await TranslationEngine.translateDynamic(n.message);
+    return '<div class="notif-item"><div class="ni-icon '+(niClass[n.type]||'ni-general')+'">'+(niSVG[n.type]||niSVG.general)+'</div><div style="flex:1"><div class="ni-title">'+title+' <span class="unread-dot"></span></div><div class="ni-msg">'+msg+'</div><div class="ni-time">'+timeAgo(n.created_at)+'</div></div></div>';
+  }));
+  el.innerHTML=items.join('');
+}
+
+function rateStar(n){starRating=n;document.querySelectorAll('.star').forEach((s,i)=>{s.classList.toggle('active',i<n);});}
+async function submitFeedback(){
+  const cat=document.getElementById('fbCat').value,msg=document.getElementById('fbMsg').value.trim();
+  if(!msg){toast(TranslationEngine.t('Please write a message'),'error');return;}
+  const btn=document.getElementById('fbBtn');btn.disabled=true;
+  const r=await api.post('/feedback',{shop_id:user.shop_id,category:cat||'complaint',message:msg,subject:'Rating: '+starRating+'/5'});
+  btn.disabled=false;
+  if(r?.success){toast(TranslationEngine.t('Feedback submitted!'));document.getElementById('fbMsg').value='';document.getElementById('fbCat').value='';rateStar(0);}
+  else toast('Error','error');
+}
+
+function goPage(name){
+  currentPage=name;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('pg-'+name).classList.add('active');
+  const nb=document.getElementById('nav-'+name);if(nb)nb.classList.add('active');
+  updatePageTitle(name);
+  document.getElementById('voiceFab').style.display=name==='home'?'flex':'none';
+  if(name==='monthly'&&!quotaData.length)loadQuota();
+  if(name==='alerts')loadNotifications();
+  closeSidebar();
+}
+
+function openVoiceModal(){document.getElementById('voiceModal').classList.add('open');}
+function closeVoiceModal(e){if(e.target===document.getElementById('voiceModal'))document.getElementById('voiceModal').classList.remove('open');}
+
+function speak(type){
+  document.getElementById('voiceModal').classList.remove('open');
+  if(!window.speechSynthesis){toast(TranslationEngine.t('Voice not supported'),'error');return;}
+  speechSynthesis.cancel();
+  // Build TTS text synchronously using verified translations
+  const {text, lang} = TranslationEngine.buildTTSText(type, {stockData,shopData,quotaData,notifData,user});
+  const utterance=new SpeechSynthesisUtterance(text);
+  utterance.lang=lang;
+  utterance.rate=0.85;
+  utterance.pitch=1;
+  utterance.volume=1;
+  const fab=document.getElementById('voiceFab');
+  fab.style.background='linear-gradient(135deg,#7c3aed,#6d28d9)';
+  utterance.onend=()=>{fab.style.background='';};
+  utterance.onerror=(e)=>{fab.style.background='';console.error('TTS error:',e);};
+  // Small timeout ensures language voice is loaded
+  setTimeout(()=>speechSynthesis.speak(utterance), 100);
+}
+
+init();
+</script>
+</body>
+</html>

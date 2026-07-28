@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Ration Notify – Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Noto+Sans+Tamil:wght@400;600&display=swap" rel="stylesheet"/>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    :root{--blue:#2563eb;--blue-dark:#1d4ed8;--bg:#f0f4f8;--border:#e2e8f0;--text:#1a202c;--muted:#718096;}
+    body{font-family:'Nunito',sans-serif;background:var(--bg);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+    .wrap{background:white;border-radius:20px;box-shadow:0 8px 40px rgba(0,0,0,0.10);overflow:hidden;width:100%;max-width:920px;display:flex;min-height:540px;}
+    .hero{background:linear-gradient(160deg,#1e3a5f,#2563eb);padding:48px 36px;display:flex;flex-direction:column;justify-content:center;color:white;flex:0 0 42%;}
+    .hero-icon{font-size:3.5rem;margin-bottom:20px;}
+    .hero h1{font-size:1.9rem;font-weight:800;line-height:1.2;margin-bottom:10px;}
+    .hero p{font-size:0.88rem;opacity:0.85;line-height:1.7;margin-bottom:28px;}
+    .lang-wrap{position:relative;display:inline-block;}
+    .lang-trigger{padding:8px 16px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.5);background:rgba(255,255,255,0.15);color:white;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;}
+    .lang-trigger:hover{background:rgba(255,255,255,0.25);}
+    .lang-dropdown{position:absolute;top:calc(100% + 6px);left:0;background:white;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.15);min-width:150px;overflow:hidden;z-index:100;display:none;}
+    .lang-dropdown.open{display:block;animation:fd 0.15s ease;}
+    @keyframes fd{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+    .lang-opt{padding:11px 16px;font-size:0.88rem;font-weight:600;color:#1a202c;cursor:pointer;transition:background 0.15s;display:flex;align-items:center;gap:8px;}
+    .lang-opt:hover{background:#eff6ff;color:var(--blue);}
+    .lang-opt.selected{background:#eff6ff;color:var(--blue);font-weight:800;}
+    .form-side{padding:48px 44px;flex:1;display:flex;flex-direction:column;justify-content:center;}
+    .form-title{font-size:1.5rem;font-weight:800;color:#1a202c;margin-bottom:4px;}
+    .form-sub{font-size:0.83rem;color:var(--muted);margin-bottom:26px;}
+    .step{display:none;} .step.active{display:block;animation:fu 0.3s ease;}
+    @keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+    .fg{margin-bottom:18px;}
+    .fl{display:block;font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:7px;}
+    .fi{width:100%;padding:13px 15px;border:1.5px solid var(--border);border-radius:11px;font-size:0.92rem;font-family:inherit;color:var(--text);background:white;outline:none;transition:border-color 0.2s;}
+    .fi:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,0.09);}
+    .fi::placeholder{color:#a0aec0;}
+    .otp-row{display:flex;gap:8px;margin-bottom:18px;}
+    .otp-box{width:44px;height:48px;text-align:center;font-size:1.2rem;font-weight:800;color:var(--blue);border:1.5px solid var(--border);border-radius:10px;background:white;outline:none;transition:all 0.2s;font-family:'Nunito',sans-serif;flex-shrink:0;}
+    .otp-box:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,0.09);}
+    .btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:white;border:none;border-radius:11px;font-size:0.95rem;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:10px;transition:all 0.2s;}
+    .btn:hover{transform:translateY(-1px);}
+    .btn:disabled{opacity:0.6;cursor:not-allowed;transform:none;}
+    .btn-sec{background:transparent;border:1.5px solid var(--border);color:var(--text);}
+    .btn-sec:hover{border-color:var(--blue);color:var(--blue);transform:none;}
+    .err{color:#dc2626;font-size:0.8rem;margin-top:6px;display:none;}
+    .staff-lnk{text-align:center;margin-top:20px;font-size:0.83rem;color:var(--muted);}
+    .staff-lnk a{color:var(--blue);font-weight:700;text-decoration:none;}
+    .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:#1a202c;color:white;padding:12px 22px;border-radius:10px;font-size:0.85rem;font-weight:600;z-index:9999;transition:transform 0.3s;white-space:nowrap;}
+    .toast.show{transform:translateX(-50%) translateY(0);}
+    @media(max-width:680px){.wrap{flex-direction:column;}.hero{flex:none;padding:32px 24px;}.form-side{padding:32px 24px;}}
+    @media(max-width:400px){.otp-box{width:38px;height:42px;font-size:1rem;}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="hero-icon">&#x1F33E;</div>
+    <h1 data-translate="Ration Shop Portal">Ration Shop Portal</h1>
+    <p data-translate="Access your ration card details, monthly quota, stock status, and alerts from your assigned shop.">Access your ration card details, monthly quota, stock status, and alerts from your assigned shop.</p>
+    <div class="lang-wrap">
+      <button class="lang-trigger" onclick="toggleDrop()" id="langTrigger">&#x1F310; <span id="langLabel">English</span> &#x25BE;</button>
+      <div class="lang-dropdown" id="langDrop">
+        <div class="lang-opt selected" onclick="changeLang('en')">&#x1F1EC;&#x1F1E7; English</div>
+        <div class="lang-opt" onclick="changeLang('ta')">&#x1F1EE;&#x1F1F3; Tamil</div>
+        <div class="lang-opt" onclick="changeLang('hi')">&#x1F1EE;&#x1F1F3; Hindi</div>
+      </div>
+    </div>
+  </div>
+  <div class="form-side">
+    <div class="step active" id="s1">
+      <div class="form-title" data-translate="Beneficiary Login">Beneficiary Login</div>
+      <div class="form-sub" data-translate="Enter your ration card details to receive OTP">Enter your ration card details to receive OTP</div>
+      <div class="fg">
+        <label class="fl" data-translate="Ration Card Number">Ration Card Number</label>
+        <input class="fi" id="card" data-translate-placeholder="Ration Card Number" placeholder="e.g. TN1234567890" style="text-transform:uppercase"/>
+      </div>
+      <div class="fg">
+        <label class="fl" data-translate="Mobile Number">Mobile Number</label>
+        <input class="fi" id="mob" type="tel" data-translate-placeholder="Mobile Number" placeholder="10-digit mobile number" maxlength="10"/>
+      </div>
+      <p class="err" id="e1"></p>
+      <button class="btn" id="sb" onclick="sendOTP()">
+        <span data-translate="Send OTP">Send OTP</span>
+      </button>
+    </div>
+    <div class="step" id="s2">
+      <div class="form-title" data-translate="Verify OTP">Verify OTP</div>
+      <div class="form-sub" data-translate="Enter the 6-digit OTP sent to your mobile">Enter the 6-digit OTP sent to your mobile</div>
+      <div class="otp-row">
+        <input class="otp-box" maxlength="1" oninput="on(this,0)" onkeydown="bk(event,0)"/>
+        <input class="otp-box" maxlength="1" oninput="on(this,1)" onkeydown="bk(event,1)"/>
+        <input class="otp-box" maxlength="1" oninput="on(this,2)" onkeydown="bk(event,2)"/>
+        <input class="otp-box" maxlength="1" oninput="on(this,3)" onkeydown="bk(event,3)"/>
+        <input class="otp-box" maxlength="1" oninput="on(this,4)" onkeydown="bk(event,4)"/>
+        <input class="otp-box" maxlength="1" oninput="on(this,5)" onkeydown="bk(event,5)"/>
+      </div>
+      <p class="err" id="e2"></p>
+      <button class="btn" id="vb" onclick="verifyOTP()">
+        <span data-translate="Verify & Login">Verify &amp; Login</span>
+      </button>
+      <button class="btn btn-sec" onclick="back()">
+        &#x2190; <span data-translate="Back">Back</span>
+      </button>
+    </div>
+    <p class="staff-lnk">
+      <a href="/staff/index.html" data-translate="Staff / Admin Login">Staff / Admin Login &#x2192;</a>
+    </p>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="/shared/i18n.js"></script>
+<script>
+const LANG_LABELS = { en: 'English', ta: 'Tamil', hi: 'Hindi' };
+
+function toggleDrop() { document.getElementById('langDrop').classList.toggle('open'); }
+document.addEventListener('click', e => { if (!e.target.closest('.lang-wrap')) document.getElementById('langDrop').classList.remove('open'); });
+
+function changeLang(l) {
+  document.getElementById('langDrop').classList.remove('open');
+  document.querySelectorAll('.lang-opt').forEach((o,i) => o.classList.toggle('selected', ['en','ta','hi'][i] === l));
+  document.getElementById('langLabel').textContent = LANG_LABELS[l];
+  // Instant - uses hardcoded verified translations
+  TranslationEngine.setLanguage(l);
+}
+
+function on(el,i){el.value=el.value.replace(/\D/g,'');if(el.value&&i<5)document.querySelectorAll('.otp-box')[i+1].focus();}
+function bk(e,i){if(e.key==='Backspace'&&!e.target.value&&i>0)document.querySelectorAll('.otp-box')[i-1].focus();}
+function getOTP(){return[...document.querySelectorAll('.otp-box')].map(b=>b.value).join('');}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+function showErr(id,m){const e=document.getElementById(id);e.textContent=m;e.style.display='block';}
+function clearErr(id){document.getElementById(id).style.display='none';}
+
+async function sendOTP(){
+  const card=document.getElementById('card').value.trim().toUpperCase();
+  const mob=document.getElementById('mob').value.trim();
+  clearErr('e1');
+  if(!card||!mob){showErr('e1', TranslationEngine.t('Please fill all fields'));return;}
+  if(!/^\d{10}$/.test(mob)){showErr('e1', TranslationEngine.t('Enter valid 10-digit mobile number'));return;}
+  const btn=document.getElementById('sb');btn.disabled=true;
+  btn.querySelector('[data-translate]').textContent = TranslationEngine.t('Sending...');
+  try{
+    const res=await fetch('/api/auth/beneficiary/request-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ration_card_number:card,mobile:mob})});
+    const data=await res.json();
+    if(data.success){
+      document.getElementById('s1').classList.remove('active');
+      document.getElementById('s2').classList.add('active');
+      if(data.demo_otp){const b=document.querySelectorAll('.otp-box');data.demo_otp.split('').forEach((d,i)=>b[i].value=d);}
+      toast(TranslationEngine.t('OTP sent successfully!'));
+    }else{showErr('e1',data.message);}
+  }catch{showErr('e1','Server error. Please try again.');}
+  btn.disabled=false;
+  btn.querySelector('[data-translate]').textContent = TranslationEngine.t('Send OTP');
+}
+
+async function verifyOTP(){
+  const card=document.getElementById('card').value.trim().toUpperCase();
+  const mob=document.getElementById('mob').value.trim();
+  const otp=getOTP(); clearErr('e2');
+  if(otp.length!==6){showErr('e2', TranslationEngine.t('Enter all 6 digits'));return;}
+  const btn=document.getElementById('vb');btn.disabled=true;
+  btn.querySelector('[data-translate]').textContent = TranslationEngine.t('Verifying...');
+  try{
+    const res=await fetch('/api/auth/beneficiary/verify-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ration_card_number:card,mobile:mob,otp})});
+    const data=await res.json();
+    if(data.success){
+      localStorage.setItem('ration_token',data.token);
+      localStorage.setItem('ration_user',JSON.stringify(data.user));
+      toast(TranslationEngine.t('Login successful!'));
+      setTimeout(()=>window.location.href='/beneficiary/dashboard.html',800);
+    }else{showErr('e2',data.message);}
+  }catch{showErr('e2','Server error. Please try again.');}
+  btn.disabled=false;
+  btn.querySelector('[data-translate]').textContent = TranslationEngine.t('Verify & Login');
+}
+
+function back(){document.getElementById('s2').classList.remove('active');document.getElementById('s1').classList.add('active');}
+
+// Init translation on load
+TranslationEngine.init(lang => {
+  const labels = {en:'English',ta:'Tamil',hi:'Hindi'};
+  document.getElementById('langLabel').textContent = labels[lang] || 'English';
+  document.querySelectorAll('.lang-opt').forEach((o,i) => o.classList.toggle('selected', ['en','ta','hi'][i] === lang));
+});
+
+const u=localStorage.getItem('ration_user');if(u&&JSON.parse(u).role==='beneficiary')window.location.href='/beneficiary/dashboard.html';
+</script>
+</body>
+</html>

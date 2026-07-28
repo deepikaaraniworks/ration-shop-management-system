@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Staff Login | Ration System</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    :root{--blue:#2563eb;--blue-dark:#1d4ed8;--bg:#f0f4f8;--border:#e2e8f0;--text:#1a202c;--muted:#718096;}
+    body{font-family:'Nunito',sans-serif;background:var(--bg);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+    .wrap{background:white;border-radius:20px;box-shadow:0 8px 40px rgba(0,0,0,0.10);overflow:hidden;width:100%;max-width:860px;display:flex;min-height:480px;}
+    .hero{background:linear-gradient(160deg,#1e3a5f,#2563eb);padding:48px 36px;display:flex;flex-direction:column;justify-content:center;color:white;flex:0 0 42%;}
+    .hero-icon{font-size:3.5rem;margin-bottom:20px;}
+    .hero h1{font-size:1.9rem;font-weight:800;line-height:1.2;margin-bottom:10px;}
+    .hero p{font-size:0.88rem;opacity:0.85;line-height:1.7;margin-bottom:24px;}
+    .admin-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);border-radius:20px;padding:6px 14px;font-size:0.8rem;font-weight:700;}
+    /* Language dropdown */
+    .lang-wrap{position:relative;display:inline-block;margin-top:16px;}
+    .lang-trigger{padding:8px 16px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.5);background:rgba(255,255,255,0.15);color:white;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;}
+    .lang-trigger:hover{background:rgba(255,255,255,0.25);}
+    .lang-dropdown{position:absolute;top:calc(100% + 6px);left:0;background:white;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.15);min-width:150px;overflow:hidden;z-index:100;display:none;}
+    .lang-dropdown.open{display:block;animation:fd 0.15s ease;}
+    @keyframes fd{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+    .lang-opt{padding:11px 16px;font-size:0.88rem;font-weight:600;color:#1a202c;cursor:pointer;transition:background 0.15s;}
+    .lang-opt:hover{background:#eff6ff;color:var(--blue);}
+    .lang-opt.selected{background:#eff6ff;color:var(--blue);font-weight:800;}
+    /* Form */
+    .form-side{padding:48px 44px;flex:1;display:flex;flex-direction:column;justify-content:center;}
+    .form-title{font-size:1.5rem;font-weight:800;color:#1a202c;margin-bottom:4px;}
+    .form-sub{font-size:0.83rem;color:var(--muted);margin-bottom:26px;}
+    .fg{margin-bottom:18px;}
+    .fl{display:block;font-size:0.85rem;font-weight:700;color:var(--text);margin-bottom:7px;}
+    .fi{width:100%;padding:13px 15px;border:1.5px solid var(--border);border-radius:11px;font-size:0.92rem;font-family:inherit;color:var(--text);background:white;outline:none;transition:border-color 0.2s;}
+    .fi:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,0.09);}
+    .fi::placeholder{color:#a0aec0;}
+    .btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:white;border:none;border-radius:11px;font-size:0.95rem;font-weight:700;font-family:inherit;cursor:pointer;transition:all 0.2s;}
+    .btn:hover{transform:translateY(-1px);}
+    .btn:disabled{opacity:0.6;cursor:not-allowed;transform:none;}
+    .bene-lnk{text-align:center;margin-top:20px;font-size:0.83rem;color:var(--muted);}
+    .bene-lnk a{color:var(--blue);font-weight:700;text-decoration:none;}
+    .err{color:#dc2626;font-size:0.8rem;margin-top:6px;display:none;}
+    .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:#1a202c;color:white;padding:12px 22px;border-radius:10px;font-size:0.85rem;font-weight:600;z-index:9999;transition:transform 0.3s;white-space:nowrap;}
+    .toast.show{transform:translateX(-50%) translateY(0);}
+    @media(max-width:680px){.wrap{flex-direction:column;}.hero{flex:none;padding:32px 24px;}.form-side{padding:32px 24px;}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="hero-icon">&#x1F3EA;</div>
+    <h1>Staff Portal</h1>
+    <p>Manage stock, send notifications, and monitor your ration shop operations.</p>
+    <div class="admin-badge">&#x1F512; Staff / Admin Access</div>
+    <div class="lang-wrap">
+      <button class="lang-trigger" onclick="toggleDrop()">&#x1F310; <span id="langLabel">English</span> &#x25BE;</button>
+      <div class="lang-dropdown" id="langDrop">
+        <div class="lang-opt selected" onclick="setLang('en')">&#x1F1EC;&#x1F1E7; English</div>
+        <div class="lang-opt" onclick="setLang('ta')">&#x1F1EE;&#x1F1F3; Tamil</div>
+        <div class="lang-opt" onclick="setLang('hi')">&#x1F1EE;&#x1F1F3; Hindi</div>
+      </div>
+    </div>
+  </div>
+  <div class="form-side">
+    <div class="form-title">Staff Login</div>
+    <div class="form-sub">Enter your credentials to access the admin panel</div>
+    <div class="fg"><label class="fl">Mobile Number</label><input class="fi" id="mob" type="tel" placeholder="10-digit mobile number" maxlength="10"/></div>
+    <div class="fg"><label class="fl">Password</label><input class="fi" id="pw" type="password" placeholder="Enter your password"/></div>
+    <p class="err" id="err"></p>
+    <button class="btn" id="loginBtn" onclick="doLogin()">Login to Staff Panel</button>
+    <p class="bene-lnk">Beneficiary? <a href="/beneficiary/index.html">Beneficiary Login &#x2192;</a></p>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+function toggleDrop(){document.getElementById('langDrop').classList.toggle('open');}
+document.addEventListener('click',e=>{if(!e.target.closest('.lang-wrap'))document.getElementById('langDrop').classList.remove('open');});
+function setLang(l){
+  const labels={en:'English',ta:'Tamil',hi:'Hindi'};
+  document.getElementById('langLabel').textContent=labels[l]||l;
+  document.querySelectorAll('.lang-opt').forEach((o,i)=>o.classList.toggle('selected',['en','ta','hi'][i]===l));
+  document.getElementById('langDrop').classList.remove('open');
+  localStorage.setItem('ration_lang',l);
+}
+async function doLogin(){
+  const mob=document.getElementById('mob').value.trim(),pw=document.getElementById('pw').value;
+  const e=document.getElementById('err');e.style.display='none';
+  if(!mob||!pw){e.textContent='Please fill all fields';e.style.display='block';return;}
+  const btn=document.getElementById('loginBtn');btn.disabled=true;btn.textContent='Logging in...';
+  try{
+    const res=await fetch('/api/auth/staff/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mobile:mob,password:pw})});
+    const data=await res.json();
+    if(data.success){
+      localStorage.setItem('ration_token',data.token);localStorage.setItem('ration_user',JSON.stringify(data.user));
+      const t=document.getElementById('toast');t.textContent='Login successful!';t.classList.add('show');
+      setTimeout(()=>window.location.href='/staff/dashboard.html',800);
+    }else{e.textContent=data.message;e.style.display='block';}
+  }catch{e.textContent='Server error. Please try again.';e.style.display='block';}
+  btn.disabled=false;btn.textContent='Login to Staff Panel';
+}
+document.getElementById('pw').addEventListener('keypress',e=>{if(e.key==='Enter')doLogin();});
+const u=localStorage.getItem('ration_user');if(u){const p=JSON.parse(u);if(p.role==='staff'||p.role==='admin')window.location.href='/staff/dashboard.html';}
+</script>
+</body>
+</html>
